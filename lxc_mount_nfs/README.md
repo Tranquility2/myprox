@@ -6,16 +6,16 @@ Mount an NFS share into an unprivileged LXC container with proper UID/GID mappin
 
 | Script | Where to run | Purpose |
 |---|---|---|
-| `update_lxc_config.sh` | Proxmox host | Configures LXC idmap and mount point |
-| `setup_container_user.sh` | Inside the LXC | Creates the mapped user |
+| `update_lxc_config.sh` | Proxmox host (as root) | Configures LXC idmap, mount point, restarts container, and sets up user |
+| `setup_container_user.sh` | Inside the LXC (called automatically) | Creates the mapped user/group |
 
-## Steps
+## Quick Start
 
-### 1. On the Proxmox Host
+Everything is driven from a **single command** on the Proxmox host:
 
 ```bash
-chmod +x update_lxc_config.sh
-./update_lxc_config.sh <LXC_ID> [SOURCE_MOUNT] [UID] [GID]
+chmod +x update_lxc_config.sh setup_container_user.sh
+./update_lxc_config.sh <LXC_ID> [SOURCE_MOUNT] [UID] [GID] [USERNAME]
 ```
 
 | Argument | Default | Description |
@@ -24,44 +24,28 @@ chmod +x update_lxc_config.sh
 | `SOURCE_MOUNT` | `/nfs/data` | Host path to mount into the container |
 | `UID` | `1028` | User ID to map through to the container |
 | `GID` | `100` | Group ID to map through to the container |
+| `USERNAME` | `media` | User name to create inside the container |
 
-**Examples:**
+### Examples
 
 ```bash
-# Defaults: mount /nfs/data with UID 1028, GID 100
+# All defaults — mount /nfs/data, user 'media' UID 1028 GID 100
 ./update_lxc_config.sh 130
 
-# Custom source mount and IDs
-./update_lxc_config.sh 130 /mnt/storage/media 1030 1030
+# Custom mount, user, and IDs
+./update_lxc_config.sh 130 /mnt/storage/media 1030 1030 plex
 ```
 
-Then start (or restart) the container:
+## What the Script Does
 
-```bash
-pct start <LXC_ID>
-```
+1. **Validates** that the source mount path exists on the host.
+2. **Ensures `/etc/subuid` & `/etc/subgid`** contain the required mappings for the specified UID/GID.
+3. **Backs up** the existing LXC config (e.g. `130.conf.bak.20260225143000`).
+4. **Updates the LXC config** with the mount point and idmap entries.
+5. **Reboots the container** and waits for it to come up (30 s timeout).
+6. **Pushes `setup_container_user.sh`** into the container and runs it to create the user/group.
+7. **Cleans up** the temporary script from the container.
 
-### 2. Inside the LXC Container
-
-```bash
-chmod +x setup_container_user.sh
-./setup_container_user.sh [USERNAME] [UID] [GID]
-```
-
-| Argument | Default | Description |
-|---|---|---|
-| `USERNAME` | `media` | Name for the new user |
-| `UID` | `1028` | User ID (must match the host-side NFS mapping) |
-| `GID` | `100` | Group ID (`users` group) |
-
-**Examples:**
-
-```bash
-# Use all defaults (user 'media', UID 1028, GID 100)
-./setup_container_user.sh
-
-# Custom user
-./setup_container_user.sh plex 1030 1030
-```
+Both scripts are **idempotent** — safe to run multiple times. They require **root** and will exit with a clear error if not run as root.
 
 A file `/mnt/data/lxc_setup_complete.txt` will be created on success.
