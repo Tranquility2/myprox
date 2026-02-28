@@ -65,8 +65,10 @@ ensure_subid /etc/subgid "$MAP_GID"
 # -- Pre-calculate idmap ranges ------------------------------------------------
 UID_AFTER=$((MAP_UID + 1))
 UID_REMAINING=$((65536 - UID_AFTER))
+UID_HOST_AFTER=$((100000 + UID_AFTER))
 GID_AFTER=$((MAP_GID + 1))
 GID_REMAINING=$((65536 - GID_AFTER))
+GID_HOST_AFTER=$((100000 + GID_AFTER))
 
 # -- Backup existing config ----------------------------------------------------
 BACKUP="${CONF}.bak.$(date +%Y%m%d%H%M%S)"
@@ -89,10 +91,10 @@ cat <<EOF >> "$CONF"
 mp0: ${SRC_MOUNT},mp=/mnt/data
 lxc.idmap: u 0 100000 ${MAP_UID}
 lxc.idmap: u ${MAP_UID} ${MAP_UID} 1
-lxc.idmap: u ${UID_AFTER} 10${UID_AFTER} ${UID_REMAINING}
+lxc.idmap: u ${UID_AFTER} ${UID_HOST_AFTER} ${UID_REMAINING}
 lxc.idmap: g 0 100000 ${MAP_GID}
 lxc.idmap: g ${MAP_GID} ${MAP_GID} 1
-lxc.idmap: g ${GID_AFTER} 10${GID_AFTER} ${GID_REMAINING}
+lxc.idmap: g ${GID_AFTER} ${GID_HOST_AFTER} ${GID_REMAINING}
 EOF
 
 # -- Restart the container -----------------------------------------------------
